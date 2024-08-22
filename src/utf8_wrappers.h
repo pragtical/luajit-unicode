@@ -5,11 +5,7 @@
  * SPDX-License-Identifier: (GPL-2.0-or-later OR MIT)
  */
 
-#ifdef _MSC_VER
-#pragma message("Warning: Compiling with MSVC, unicode patch not enabled")
-#endif
-
-#if defined(_WIN32) && !defined (_MSC_VER)
+#ifdef _WIN32
 
 #ifndef UTF8_WRAPPERS_H
 #define UTF8_WRAPPERS_H
@@ -33,10 +29,16 @@ FILE *popen_utf8(const char *command, const char *mode);
 
 #ifdef lib_os_c
 #include <stdio.h>
-int remove_utf8(const char *pathname);
-int rename_utf8(const char *oldpath, const char *newpath);
-int system_utf8(const char *command);
-char *getenv_utf8(const char *varname);
+#ifndef _MSC_VER
+  #define UTF8CRTIMP
+#else
+  #include <windows.h>
+  #define UTF8CRTIMP _ACRTIMP
+#endif
+UTF8CRTIMP int remove_utf8(const char *pathname);
+UTF8CRTIMP int rename_utf8(const char *oldpath, const char *newpath);
+UTF8CRTIMP int system_utf8(const char *command);
+UTF8CRTIMP char *getenv_utf8(const char *varname);
 #define remove              remove_utf8
 #define rename              rename_utf8
 #define system              system_utf8
