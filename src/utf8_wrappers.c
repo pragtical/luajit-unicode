@@ -5,18 +5,23 @@
  * SPDX-License-Identifier: (GPL-2.0-or-later OR MIT)
  */
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined (_MSC_VER)
 #include <windows.h>    /* for MultiByteToWideChar */
 #include <wchar.h>      /* for _wrename */
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
 
+// A environment variable has the maximum length of 32767 characters
+// including the terminator.
+#define MAX_ENV_SIZE    32767
 // Set a high limit in case long paths are enabled.
 #define MAX_PATH_SIZE   4096
 #define MAX_MODE_SIZE   128
 // cmd.exe argument length is reportedly limited to 8192.
 #define MAX_CMD_SIZE    8192
+
+static char env_value[MAX_ENV_SIZE];
 
 FILE *fopen_utf8(const char *pathname, const char *mode) {
     wchar_t pathname_w[MAX_PATH_SIZE];
@@ -97,5 +102,28 @@ HMODULE LoadLibraryExA_utf8(LPCSTR lpLibFileName, HANDLE hFile, DWORD dwFlags) {
         return NULL;
     }
     return LoadLibraryExW(pathname_w, hFile, dwFlags);
+}
+
+char* getenv_utf8(const char *varname) {
+  /** This implementation is not thread safe.
+   * The string is only valid until the next call to getenv.
+   * This behavior is allowed per POSIX.1-2017 where it was said that:
+   * > The returned string pointer might be invalidated or the string content might be overwritten by a subsequent call to getenv(), setenv(), unsetenv(), or (if supported) putenv() but they shall not be affected by a call to any other function in this volume of POSIX.1-2017.
+   * > The returned string pointer might also be invalidated if the calling thread is terminated.
+   * > The getenv() function need not be thread-safe.
+   */
+  wchar_t *value_w;
+  wchar_t varname_w[MAX_ENV_SIZE];
+
+  if (!MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, varname, -1, varname_w, MAX_ENV_SIZE))
+    return NULL;
+  value_w = _wgetenv((const wchar_t *) varname_w);
+  if (!value_w)
+    return NULL;
+
+  if (!WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, value_w, -1, env_value, MAX_ENV_SIZE, NULL, NULL))
+    return NULL;
+
+  return env_value;
 }
 #endif
